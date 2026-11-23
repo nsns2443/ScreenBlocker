@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK v2
 
 on:
   push:
@@ -12,9 +12,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create all project files automatically
+      - name: Create v2 project files
         run: |
           mkdir -p app/src/main/res/layout
+          mkdir -p app/src/main/res/drawable
           mkdir -p app/src/main/java/com/my/screenblocker
 
           cat << 'EOF' > settings.gradle.kts
@@ -64,13 +65,18 @@ jobs:
                   applicationId = "com.my.screenblocker"
                   minSdk = 29
                   targetSdk = 34
-                  versionCode = 1
-                  versionName = "1.0"
+                  versionCode = 2
+                  versionName = "2.0"
+
+                  ndk {
+                      abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+                  }
               }
 
               buildTypes {
                   release {
-                      isMinifyEnabled = false
+                      isMinifyEnabled = true
+                      isShrinkResources = true
                   }
               }
               compileOptions {
@@ -86,7 +92,7 @@ jobs:
               implementation("androidx.core:core-ktx:1.13.1")
               implementation("androidx.appcompat:appcompat:1.7.0")
               implementation("com.google.android.material:material:1.12.0")
-              implementation("com.google.mlkit:face-detection:16.1.7")
+              implementation("com.google.android.gms:play-services-mlkit-face-detection:17.1.0")
           }
           EOF
 
@@ -103,7 +109,11 @@ jobs:
                   android:allowBackup="true"
                   android:label="ScreenBlocker"
                   android:supportsRtl="true"
-                  android:theme="@style/Theme.MaterialComponents.DayNight.DarkActionBar">
+                  android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
+
+                  <meta-data
+                      android:name="com.google.mlkit.vision.DEPENDENCIES"
+                      android:value="face" />
 
                   <activity
                       android:name=".MainActivity"
@@ -122,30 +132,149 @@ jobs:
           </manifest>
           EOF
 
+          cat << 'EOF' > app/src/main/res/drawable/bg_card.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android">
+              <solid android:color="#1E293B" />
+              <corners android:radius="20dp" />
+              <stroke android:width="1dp" android:color="#334155" />
+          </shape>
+          EOF
+
+          cat << 'EOF' > app/src/main/res/drawable/bg_btn_start.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android">
+              <solid android:color="#10B981" />
+              <corners android:radius="14dp" />
+          </shape>
+          EOF
+
+          cat << 'EOF' > app/src/main/res/drawable/bg_btn_stop.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android">
+              <solid android:color="#EF4444" />
+              <corners android:radius="14dp" />
+          </shape>
+          EOF
+
           cat << 'EOF' > app/src/main/res/layout/activity_main.xml
           <?xml version="1.0" encoding="utf-8"?>
-          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+          <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
               android:layout_width="match_parent"
               android:layout_height="match_parent"
-              android:gravity="center"
-              android:orientation="vertical"
-              android:padding="24dp">
+              android:background="#0F172A"
+              android:fillViewport="true">
 
-              <Button
-                  android:id="@+id/btnStart"
+              <LinearLayout
                   android:layout_width="match_parent"
-                  android:layout_height="60dp"
-                  android:text="ব্লকার চালু করুন (ON)"
-                  android:textSize="18sp" />
+                  android:layout_height="wrap_content"
+                  android:orientation="vertical"
+                  android:padding="22dp">
 
-              <Button
-                  android:id="@+id/btnStop"
-                  android:layout_width="match_parent"
-                  android:layout_height="60dp"
-                  android:layout_marginTop="16dp"
-                  android:text="ব্লকার বন্ধ করুন (OFF)"
-                  android:textSize="18sp" />
-          </LinearLayout>
+                  <TextView
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="24dp"
+                      android:text="ScreenBlocker"
+                      android:textColor="#F8FAFC"
+                      android:textSize="28sp"
+                      android:textStyle="bold" />
+
+                  <TextView
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="4dp"
+                      android:text="Smart Privacy Overlay • v2.0 Lite"
+                      android:textColor="#94A3B8"
+                      android:textSize="14sp" />
+
+                  <LinearLayout
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="28dp"
+                      android:background="@drawable/bg_card"
+                      android:gravity="center"
+                      android:orientation="vertical"
+                      android:padding="24dp">
+
+                      <TextView
+                          android:id="@+id/tvStatus"
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:text="● সার্ভিস বন্ধ আছে"
+                          android:textColor="#94A3B8"
+                          android:textSize="16sp"
+                          android:textStyle="bold" />
+
+                      <androidx.appcompat.widget.AppCompatButton
+                          android:id="@+id/btnStart"
+                          android:layout_width="match_parent"
+                          android:layout_height="56dp"
+                          android:layout_marginTop="20dp"
+                          android:background="@drawable/bg_btn_start"
+                          android:text="ব্লকার চালু করুন (ON)"
+                          android:textAllCaps="false"
+                          android:textColor="#FFFFFF"
+                          android:textSize="16sp"
+                          android:textStyle="bold" />
+
+                      <androidx.appcompat.widget.AppCompatButton
+                          android:id="@+id/btnStop"
+                          android:layout_width="match_parent"
+                          android:layout_height="56dp"
+                          android:layout_marginTop="12dp"
+                          android:background="@drawable/bg_btn_stop"
+                          android:text="ব্লকার বন্ধ করুন (OFF)"
+                          android:textAllCaps="false"
+                          android:textColor="#FFFFFF"
+                          android:textSize="16sp"
+                          android:textStyle="bold" />
+                  </LinearLayout>
+
+                  <LinearLayout
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="20dp"
+                      android:background="@drawable/bg_card"
+                      android:orientation="vertical"
+                      android:padding="20dp">
+
+                      <TextView
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:text="বক্সের সাইজ (কভারেজ)"
+                          android:textColor="#E2E8F0"
+                          android:textSize="15sp"
+                          android:textStyle="bold" />
+
+                      <TextView
+                          android:id="@+id/tvPaddingValue"
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:layout_marginTop="4dp"
+                          android:text="অতিরিক্ত মার্জিন: 25 px"
+                          android:textColor="#94A3B8"
+                          android:textSize="13sp" />
+
+                      <SeekBar
+                          android:id="@+id/seekPadding"
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:layout_marginTop="10dp"
+                          android:max="80"
+                          android:progress="25" />
+                  </LinearLayout>
+
+                  <TextView
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="20dp"
+                      android:lineSpacingExtra="4dp"
+                      android:text="টিপস: Facebook বা YouTube ব্যবহারের আগে ON করুন এবং কাজ শেষে OFF করে দিন। প্রথমবার চালু করলে গুগল প্লে-সার্ভিস অটোমেটিক হালকা AI ফাইলটি রেডি করে নেবে।"
+                      android:textColor="#64748B"
+                      android:textSize="13sp" />
+              </LinearLayout>
+          </ScrollView>
           EOF
 
           cat << 'EOF' > app/src/main/java/com/my/screenblocker/OverlayView.kt
@@ -156,14 +285,24 @@ jobs:
           import android.graphics.Color
           import android.graphics.Paint
           import android.graphics.Rect
+          import android.graphics.RectF
           import android.view.View
 
           class OverlayView(context: Context) : View(context) {
               private var boxes: List<Rect> = emptyList()
-              private val paint = Paint().apply {
-                  color = Color.BLACK
+
+              private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                  color = Color.parseColor("#F5111827")
                   style = Paint.Style.FILL
               }
+
+              private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                  color = Color.parseColor("#40FFFFFF")
+                  style = Paint.Style.STROKE
+                  strokeWidth = 2f
+              }
+
+              private val tempRect = RectF()
 
               fun updateBoxes(newBoxes: List<Rect>) {
                   boxes = newBoxes
@@ -172,14 +311,16 @@ jobs:
 
               override fun onDraw(canvas: Canvas) {
                   super.onDraw(canvas)
+                  val pad = BlurService.boxPadding.toFloat()
                   for (rect in boxes) {
-                      canvas.drawRect(
-                          (rect.left - 30).toFloat(),
-                          (rect.top - 40).toFloat(),
-                          (rect.right + 30).toFloat(),
-                          (rect.bottom + 40).toFloat(),
-                          paint
+                      tempRect.set(
+                          (rect.left - pad).coerceAtLeast(0f),
+                          (rect.top - pad * 1.2f).coerceAtLeast(0f),
+                          (rect.right + pad).coerceAtMost(width.toFloat()),
+                          (rect.bottom + pad * 1.2f).coerceAtMost(height.toFloat())
                       )
+                      canvas.drawRoundRect(tempRect, 26f, 26f, fillPaint)
+                      canvas.drawRoundRect(tempRect, 26f, 26f, borderPaint)
                   }
               }
           }
@@ -194,19 +335,28 @@ jobs:
           import android.content.pm.ServiceInfo
           import android.graphics.Bitmap
           import android.graphics.PixelFormat
+          import android.graphics.Rect
           import android.hardware.display.DisplayManager
           import android.hardware.display.VirtualDisplay
           import android.media.ImageReader
           import android.media.projection.MediaProjection
           import android.media.projection.MediaProjectionManager
           import android.os.*
+          import android.util.DisplayMetrics
+          import android.view.Gravity
           import android.view.WindowManager
           import androidx.core.app.NotificationCompat
           import com.google.mlkit.vision.common.InputImage
           import com.google.mlkit.vision.face.FaceDetection
           import com.google.mlkit.vision.face.FaceDetectorOptions
+          import kotlin.math.abs
 
           class BlurService : Service() {
+
+              companion object {
+                  var isRunning = false
+                  var boxPadding = 25
+              }
 
               private var mediaProjection: MediaProjection? = null
               private var virtualDisplay: VirtualDisplay? = null
@@ -215,26 +365,62 @@ jobs:
               private lateinit var overlayView: OverlayView
 
               private var lastProcessTime = 0L
+              private var isProcessing = false
+              private var lastSamplePixels: IntArray? = null
+              private var currentBoxes: List<Rect> = emptyList()
+
+              private var realWidth = 1080
+              private var realHeight = 2400
+
               private val handler = Handler(Looper.getMainLooper())
 
               private val detector = FaceDetection.getClient(
                   FaceDetectorOptions.Builder()
                       .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+                      .setMinFaceSize(0.06f)
                       .build()
               )
 
+              private fun getRealScreenSize(): Pair<Int, Int> {
+                  return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                      val bounds = windowManager.maximumWindowMetrics.bounds
+                      Pair(bounds.width(), bounds.height())
+                  } else {
+                      val metrics = DisplayMetrics()
+                      @Suppress("DEPRECATION")
+                      windowManager.defaultDisplay.getRealMetrics(metrics)
+                      Pair(metrics.widthPixels, metrics.heightPixels)
+                  }
+              }
+
               override fun onCreate() {
                   super.onCreate()
+                  isRunning = true
                   windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+                  val (w, h) = getRealScreenSize()
+                  realWidth = w
+                  realHeight = h
+
                   overlayView = OverlayView(this)
 
                   val params = WindowManager.LayoutParams(
-                      WindowManager.LayoutParams.MATCH_PARENT,
-                      WindowManager.LayoutParams.MATCH_PARENT,
+                      realWidth,
+                      realHeight,
                       WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                      WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                      WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                              WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                              WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                              WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                       PixelFormat.TRANSLUCENT
-                  )
+                  ).apply {
+                      gravity = Gravity.TOP or Gravity.START
+                      x = 0
+                      y = 0
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                          layoutInDisplayCutoutMode =
+                              WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                      }
+                  }
                   windowManager.addView(overlayView, params)
               }
 
@@ -252,7 +438,11 @@ jobs:
                   val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
                   mediaProjection = projectionManager.getMediaProjection(resultCode, data)
 
-                  mediaProjection?.registerCallback(object : MediaProjection.Callback() {}, handler)
+                  mediaProjection?.registerCallback(object : MediaProjection.Callback() {
+                      override fun onStop() {
+                          stopSelf()
+                      }
+                  }, handler)
                   startScreenCapture()
 
                   return START_STICKY
@@ -263,10 +453,17 @@ jobs:
                   val channel = NotificationChannel(channelId, "Screen Blocker", NotificationManager.IMPORTANCE_LOW)
                   getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
 
+                  val openIntent = PendingIntent.getActivity(
+                      this, 0, Intent(this, MainActivity::class.java),
+                      PendingIntent.FLAG_IMMUTABLE
+                  )
+
                   val notification = NotificationCompat.Builder(this, channelId)
-                      .setContentTitle("Screen Blocker চালু আছে")
-                      .setContentText("স্ক্রিন ফিল্টারিং চলছে...")
+                      .setContentTitle("ScreenBlocker চালু আছে")
+                      .setContentText("বন্ধ করতে এখানে ট্যাপ করুন")
                       .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
+                      .setContentIntent(openIntent)
+                      .setOngoing(true)
                       .build()
 
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -276,15 +473,53 @@ jobs:
                   }
               }
 
-              private fun startScreenCapture() {
-                  val metrics = resources.displayMetrics
-                  val width = metrics.widthPixels
-                  val height = metrics.heightPixels
-                  val density = metrics.densityDpi
+              private fun hasScreenChanged(bitmap: Bitmap, scaleX: Float, scaleY: Float): Boolean {
+                  val cols = 5
+                  val rows = 8
+                  val newSamples = IntArray(cols * rows)
+                  var idx = 0
+                  var diffSum = 0L
+                  var comparedCount = 0
+                  val prev = lastSamplePixels
 
-                  imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
+                  for (r in 1..rows) {
+                      val y = (bitmap.height * r) / (rows + 1)
+                      for (c in 1..cols) {
+                          val x = (bitmap.width * c) / (cols + 1)
+                          val pixel = bitmap.getPixel(x, y)
+                          newSamples[idx] = pixel
+
+                          val screenX = (x * scaleX).toInt()
+                          val screenY = (y * scaleY).toInt()
+                          val insideBox = currentBoxes.any { it.contains(screenX, screenY) }
+
+                          if (!insideBox && prev != null) {
+                              val p1 = prev[idx]
+                              val dr = abs(((pixel shr 16) and 0xFF) - ((p1 shr 16) and 0xFF))
+                              val dg = abs(((pixel shr 8) and 0xFF) - ((p1 shr 8) and 0xFF))
+                              val db = abs((pixel and 0xFF) - (p1 and 0xFF))
+                              diffSum += (dr + dg + db) / 3
+                              comparedCount++
+                          }
+                          idx++
+                      }
+                  }
+                  lastSamplePixels = newSamples
+                  if (prev == null || comparedCount == 0) return true
+                  return (diffSum / comparedCount) > 12
+              }
+
+              private fun startScreenCapture() {
+                  val captureWidth = (realWidth / 2).coerceAtLeast(360)
+                  val captureHeight = (realHeight / 2).coerceAtLeast(640)
+                  val density = (resources.displayMetrics.densityDpi / 2).coerceAtLeast(160)
+
+                  val scaleX = realWidth.toFloat() / captureWidth.toFloat()
+                  val scaleY = realHeight.toFloat() / captureHeight.toFloat()
+
+                  imageReader = ImageReader.newInstance(captureWidth, captureHeight, PixelFormat.RGBA_8888, 2)
                   virtualDisplay = mediaProjection?.createVirtualDisplay(
-                      "ScreenBlockerDisplay", width, height, density,
+                      "ScreenBlockerDisplay", captureWidth, captureHeight, density,
                       DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                       imageReader?.surface, null, handler
                   )
@@ -293,38 +528,70 @@ jobs:
                       val image = reader.acquireLatestImage() ?: return@setOnImageAvailableListener
                       val now = System.currentTimeMillis()
 
-                      if (now - lastProcessTime < 400) {
+                      if (isProcessing || now - lastProcessTime < 150) {
                           image.close()
                           return@setOnImageAvailableListener
                       }
                       lastProcessTime = now
+                      isProcessing = true
 
                       val planes = image.planes
                       val buffer = planes[0].buffer
                       val pixelStride = planes[0].pixelStride
                       val rowStride = planes[0].rowStride
-                      val rowPadding = rowStride - pixelStride * width
+                      val rowPadding = rowStride - pixelStride * captureWidth
 
-                      val bitmap = Bitmap.createBitmap(
-                          width + rowPadding / pixelStride, height, Bitmap.Config.ARGB_8888
+                      val fullBitmap = Bitmap.createBitmap(
+                          captureWidth + rowPadding / pixelStride, captureHeight, Bitmap.Config.ARGB_8888
                       )
-                      bitmap.copyPixelsFromBuffer(buffer)
+                      fullBitmap.copyPixelsFromBuffer(buffer)
                       image.close()
+
+                      val bitmap = if (rowPadding > 0) {
+                          val cropped = Bitmap.createBitmap(fullBitmap, 0, 0, captureWidth, captureHeight)
+                          fullBitmap.recycle()
+                          cropped
+                      } else {
+                          fullBitmap
+                      }
+
+                      val screenChanged = hasScreenChanged(bitmap, scaleX, scaleY)
+
+                      if (!screenChanged && currentBoxes.isNotEmpty()) {
+                          bitmap.recycle()
+                          isProcessing = false
+                          return@setOnImageAvailableListener
+                      }
 
                       val inputImage = InputImage.fromBitmap(bitmap, 0)
                       detector.process(inputImage)
                           .addOnSuccessListener { faces ->
-                              val boxes = faces.map { it.boundingBox }
-                              overlayView.updateBoxes(boxes)
+                              val mappedBoxes = faces.map { face ->
+                                  val b = face.boundingBox
+                                  Rect(
+                                      (b.left * scaleX).toInt(),
+                                      (b.top * scaleY).toInt(),
+                                      (b.right * scaleX).toInt(),
+                                      (b.bottom * scaleY).toInt()
+                                  )
+                              }
+                              if (screenChanged) {
+                                  currentBoxes = mappedBoxes
+                              } else if (mappedBoxes.isNotEmpty()) {
+                                  currentBoxes = currentBoxes + mappedBoxes
+                              }
+                              overlayView.updateBoxes(currentBoxes)
                           }
                           .addOnCompleteListener {
                               bitmap.recycle()
+                              isProcessing = false
                           }
                   }, handler)
               }
 
               override fun onDestroy() {
                   super.onDestroy()
+                  isRunning = false
                   virtualDisplay?.release()
                   imageReader?.close()
                   mediaProjection?.stop()
@@ -343,12 +610,15 @@ jobs:
           import android.app.Activity
           import android.content.Context
           import android.content.Intent
+          import android.graphics.Color
           import android.media.projection.MediaProjectionManager
           import android.net.Uri
           import android.os.Build
           import android.os.Bundle
           import android.provider.Settings
           import android.widget.Button
+          import android.widget.SeekBar
+          import android.widget.TextView
           import android.widget.Toast
           import androidx.activity.result.contract.ActivityResultContracts
           import androidx.appcompat.app.AppCompatActivity
@@ -356,6 +626,7 @@ jobs:
           class MainActivity : AppCompatActivity() {
 
               private lateinit var projectionManager: MediaProjectionManager
+              private lateinit var tvStatus: TextView
 
               private val screenCaptureLauncher = registerForActivityResult(
                   ActivityResultContracts.StartActivityForResult()
@@ -370,7 +641,8 @@ jobs:
                       } else {
                           startService(serviceIntent)
                       }
-                      Toast.makeText(this, "ব্লকার চালু হয়েছে!", Toast.LENGTH_SHORT).show()
+                      updateStatusUI(true)
+                      Toast.makeText(this, "ScreenBlocker চালু হয়েছে!", Toast.LENGTH_SHORT).show()
                       moveTaskToBack(true)
                   }
               }
@@ -380,6 +652,21 @@ jobs:
                   setContentView(R.layout.activity_main)
 
                   projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+                  tvStatus = findViewById(R.id.tvStatus)
+
+                  val seekPadding = findViewById<SeekBar>(R.id.seekPadding)
+                  val tvPaddingValue = findViewById<TextView>(R.id.tvPaddingValue)
+                  seekPadding.progress = BlurService.boxPadding
+                  tvPaddingValue.text = "অতিরিক্ত মার্জিন: ${BlurService.boxPadding} px"
+
+                  seekPadding.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                      override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                          BlurService.boxPadding = progress
+                          tvPaddingValue.text = "অতিরিক্ত মার্জিন: $progress px"
+                      }
+                      override fun onStartTrackingTouch(sb: SeekBar?) {}
+                      override fun onStopTrackingTouch(sb: SeekBar?) {}
+                  })
 
                   findViewById<Button>(R.id.btnStart).setOnClickListener {
                       if (!Settings.canDrawOverlays(this)) {
@@ -396,7 +683,23 @@ jobs:
 
                   findViewById<Button>(R.id.btnStop).setOnClickListener {
                       stopService(Intent(this, BlurService::class.java))
-                      Toast.makeText(this, "ব্লকার বন্ধ করা হয়েছে", Toast.LENGTH_SHORT).show()
+                      updateStatusUI(false)
+                      Toast.makeText(this, "ScreenBlocker বন্ধ করা হয়েছে", Toast.LENGTH_SHORT).show()
+                  }
+              }
+
+              override fun onResume() {
+                  super.onResume()
+                  updateStatusUI(BlurService.isRunning)
+              }
+
+              private fun updateStatusUI(active: Boolean) {
+                  if (active) {
+                      tvStatus.text = "● সার্ভিস চালু আছে (Active)"
+                      tvStatus.setTextColor(Color.parseColor("#10B981"))
+                  } else {
+                      tvStatus.text = "● সার্ভিস বন্ধ আছে"
+                      tvStatus.setTextColor(Color.parseColor("#94A3B8"))
                   }
               }
           }
@@ -419,5 +722,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ScreenBlocker-APK
+          name: ScreenBlocker-v2-Lite-APK
           path: app/build/outputs/apk/debug/app-debug.apk
