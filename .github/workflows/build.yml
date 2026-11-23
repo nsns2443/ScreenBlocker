@@ -1,4 +1,4 @@
-name: Build Android APK v2
+name: Build Android APK v3
 
 on:
   push:
@@ -12,11 +12,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create v2 project files
+      - name: Create v3 project files and download offline Gender AI model
         run: |
+          mkdir -p app/src/main/assets
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/drawable
           mkdir -p app/src/main/java/com/my/screenblocker
+
+          echo "Downloading lightweight offline Gender Classification model..."
+          curl -fSL "https://raw.githubusercontent.com/shubham0204/Age-Gender_Estimation_TF-Android/master/app/src/main/assets/model_gender_q.tflite" -o app/src/main/assets/gender_model.tflite \
+          || curl -fSL "https://raw.githubusercontent.com/shubham0204/Age-Gender_Estimation_TF-Android/master/app/src/main/assets/model_lite_gender_q.tflite" -o app/src/main/assets/gender_model.tflite \
+          || curl -fSL "https://raw.githubusercontent.com/haturusinghe/cnn-age-gender-detection-android/main/app/src/main/assets/model_gender_nonq.tflite" -o app/src/main/assets/gender_model.tflite
+
+          ls -lh app/src/main/assets/gender_model.tflite
 
           cat << 'EOF' > settings.gradle.kts
           pluginManagement {
@@ -65,12 +73,16 @@ jobs:
                   applicationId = "com.my.screenblocker"
                   minSdk = 29
                   targetSdk = 34
-                  versionCode = 2
-                  versionName = "2.0"
+                  versionCode = 3
+                  versionName = "3.0"
 
                   ndk {
                       abiFilters += listOf("arm64-v8a", "armeabi-v7a")
                   }
+              }
+
+              androidResources {
+                  noCompress += "tflite"
               }
 
               buildTypes {
@@ -93,6 +105,7 @@ jobs:
               implementation("androidx.appcompat:appcompat:1.7.0")
               implementation("com.google.android.material:material:1.12.0")
               implementation("com.google.android.gms:play-services-mlkit-face-detection:17.1.0")
+              implementation("org.tensorflow:tensorflow-lite:2.14.0")
           }
           EOF
 
@@ -174,7 +187,7 @@ jobs:
                   <TextView
                       android:layout_width="wrap_content"
                       android:layout_height="wrap_content"
-                      android:layout_marginTop="24dp"
+                      android:layout_marginTop="20dp"
                       android:text="ScreenBlocker"
                       android:textColor="#F8FAFC"
                       android:textSize="28sp"
@@ -184,24 +197,24 @@ jobs:
                       android:layout_width="wrap_content"
                       android:layout_height="wrap_content"
                       android:layout_marginTop="4dp"
-                      android:text="Smart Privacy Overlay • v2.0 Lite"
+                      android:text="AI Privacy Blur • v3.0"
                       android:textColor="#94A3B8"
                       android:textSize="14sp" />
 
                   <LinearLayout
                       android:layout_width="match_parent"
                       android:layout_height="wrap_content"
-                      android:layout_marginTop="28dp"
+                      android:layout_marginTop="24dp"
                       android:background="@drawable/bg_card"
                       android:gravity="center"
                       android:orientation="vertical"
-                      android:padding="24dp">
+                      android:padding="22dp">
 
                       <TextView
                           android:id="@+id/tvStatus"
                           android:layout_width="wrap_content"
                           android:layout_height="wrap_content"
-                          android:text="● সার্ভিস বন্ধ আছে"
+                          android:text="● Service Stopped"
                           android:textColor="#94A3B8"
                           android:textSize="16sp"
                           android:textStyle="bold" />
@@ -209,10 +222,10 @@ jobs:
                       <androidx.appcompat.widget.AppCompatButton
                           android:id="@+id/btnStart"
                           android:layout_width="match_parent"
-                          android:layout_height="56dp"
-                          android:layout_marginTop="20dp"
+                          android:layout_height="54dp"
+                          android:layout_marginTop="18dp"
                           android:background="@drawable/bg_btn_start"
-                          android:text="ব্লকার চালু করুন (ON)"
+                          android:text="Start Blocker (ON)"
                           android:textAllCaps="false"
                           android:textColor="#FFFFFF"
                           android:textSize="16sp"
@@ -221,10 +234,10 @@ jobs:
                       <androidx.appcompat.widget.AppCompatButton
                           android:id="@+id/btnStop"
                           android:layout_width="match_parent"
-                          android:layout_height="56dp"
+                          android:layout_height="54dp"
                           android:layout_marginTop="12dp"
                           android:background="@drawable/bg_btn_stop"
-                          android:text="ব্লকার বন্ধ করুন (OFF)"
+                          android:text="Stop Blocker (OFF)"
                           android:textAllCaps="false"
                           android:textColor="#FFFFFF"
                           android:textSize="16sp"
@@ -234,93 +247,274 @@ jobs:
                   <LinearLayout
                       android:layout_width="match_parent"
                       android:layout_height="wrap_content"
-                      android:layout_marginTop="20dp"
+                      android:layout_marginTop="18dp"
                       android:background="@drawable/bg_card"
                       android:orientation="vertical"
                       android:padding="20dp">
 
+                      <LinearLayout
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:gravity="center_vertical"
+                          android:orientation="horizontal">
+
+                          <LinearLayout
+                              android:layout_width="0dp"
+                              android:layout_height="wrap_content"
+                              android:layout_weight="1"
+                              android:orientation="vertical">
+
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:text="Women Only Filter (AI)"
+                                  android:textColor="#E2E8F0"
+                                  android:textSize="15sp"
+                                  android:textStyle="bold" />
+
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:layout_marginTop="2dp"
+                                  android:text="Blur only female faces &amp; upper body"
+                                  android:textColor="#94A3B8"
+                                  android:textSize="12sp" />
+                          </LinearLayout>
+
+                          <androidx.appcompat.widget.SwitchCompat
+                              android:id="@+id/switchWomenOnly"
+                              android:layout_width="wrap_content"
+                              android:layout_height="wrap_content"
+                              android:checked="true" />
+                      </LinearLayout>
+
+                      <View
+                          android:layout_width="match_parent"
+                          android:layout_height="1dp"
+                          android:layout_marginTop="16dp"
+                          android:layout_marginBottom="16dp"
+                          android:background="#334155" />
+
                       <TextView
                           android:layout_width="wrap_content"
                           android:layout_height="wrap_content"
-                          android:text="বক্সের সাইজ (কভারেজ)"
+                          android:text="Upper Body Coverage (Face to Chest)"
                           android:textColor="#E2E8F0"
                           android:textSize="15sp"
                           android:textStyle="bold" />
 
                       <TextView
-                          android:id="@+id/tvPaddingValue"
+                          android:id="@+id/tvCoverageValue"
                           android:layout_width="wrap_content"
                           android:layout_height="wrap_content"
                           android:layout_marginTop="4dp"
-                          android:text="অতিরিক্ত মার্জিন: 25 px"
+                          android:text="Downward Extension: 2.2x face height"
                           android:textColor="#94A3B8"
                           android:textSize="13sp" />
 
                       <SeekBar
-                          android:id="@+id/seekPadding"
+                          android:id="@+id/seekCoverage"
                           android:layout_width="match_parent"
                           android:layout_height="wrap_content"
-                          android:layout_marginTop="10dp"
-                          android:max="80"
-                          android:progress="25" />
+                          android:layout_marginTop="8dp"
+                          android:max="35"
+                          android:progress="22" />
+
+                      <View
+                          android:layout_width="match_parent"
+                          android:layout_height="1dp"
+                          android:layout_marginTop="16dp"
+                          android:layout_marginBottom="16dp"
+                          android:background="#334155" />
+
+                      <TextView
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:text="Blur Intensity"
+                          android:textColor="#E2E8F0"
+                          android:textSize="15sp"
+                          android:textStyle="bold" />
+
+                      <TextView
+                          android:id="@+id/tvBlurValue"
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:layout_marginTop="4dp"
+                          android:text="Strength: Heavy (Level 8)"
+                          android:textColor="#94A3B8"
+                          android:textSize="13sp" />
+
+                      <SeekBar
+                          android:id="@+id/seekBlur"
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:layout_marginTop="8dp"
+                          android:max="10"
+                          android:progress="8" />
                   </LinearLayout>
 
                   <TextView
                       android:layout_width="match_parent"
                       android:layout_height="wrap_content"
-                      android:layout_marginTop="20dp"
+                      android:layout_marginTop="18dp"
                       android:lineSpacingExtra="4dp"
-                      android:text="টিপস: Facebook বা YouTube ব্যবহারের আগে ON করুন এবং কাজ শেষে OFF করে দিন। প্রথমবার চালু করলে গুগল প্লে-সার্ভিস অটোমেটিক হালকা AI ফাইলটি রেডি করে নেবে।"
+                      android:text="Tip: Turn ON before opening Facebook or YouTube, and tap OFF when done. All AI detection runs 100% offline on your device."
                       android:textColor="#64748B"
                       android:textSize="13sp" />
               </LinearLayout>
           </ScrollView>
           EOF
 
+          cat << 'EOF' > app/src/main/java/com/my/screenblocker/GenderClassifier.kt
+          package com.my.screenblocker
+
+          import android.content.Context
+          import android.graphics.Bitmap
+          import android.graphics.Rect
+          import org.tensorflow.lite.Interpreter
+          import java.io.FileInputStream
+          import java.nio.ByteBuffer
+          import java.nio.ByteOrder
+          import java.nio.MappedByteBuffer
+          import java.nio.channels.FileChannel
+
+          class GenderClassifier(context: Context) {
+              private var interpreter: Interpreter? = null
+              private val inputSize = 128
+
+              init {
+                  try {
+                      val model = loadModelFile(context, "gender_model.tflite")
+                      val options = Interpreter.Options().apply {
+                          setNumThreads(2)
+                      }
+                      interpreter = Interpreter(model, options)
+                  } catch (e: Exception) {
+                      e.printStackTrace()
+                  }
+              }
+
+              private fun loadModelFile(context: Context, filename: String): MappedByteBuffer {
+                  val fd = context.assets.openFd(filename)
+                  val inputStream = FileInputStream(fd.fileDescriptor)
+                  val fileChannel = inputStream.channel
+                  return fileChannel.map(FileChannel.MapMode.READ_ONLY, fd.startOffset, fd.declaredLength)
+              }
+
+              fun isFemale(screenBitmap: Bitmap, faceRect: Rect): Boolean {
+                  val tflite = interpreter ?: return true
+
+                  // Add 20% margin around face so hair & jawline improve accuracy
+                  val padX = (faceRect.width() * 0.20f).toInt()
+                  val padY = (faceRect.height() * 0.20f).toInt()
+
+                  val left = (faceRect.left - padX).coerceIn(0, screenBitmap.width - 1)
+                  val top = (faceRect.top - padY).coerceIn(0, screenBitmap.height - 1)
+                  val right = (faceRect.right + padX).coerceIn(left + 1, screenBitmap.width)
+                  val bottom = (faceRect.bottom + padY).coerceIn(top + 1, screenBitmap.height)
+
+                  val cropW = right - left
+                  val cropH = bottom - top
+                  if (cropW < 12 || cropH < 12) return false
+
+                  var cropped: Bitmap? = null
+                  var scaled: Bitmap? = null
+                  return try {
+                      cropped = Bitmap.createBitmap(screenBitmap, left, top, cropW, cropH)
+                      scaled = Bitmap.createScaledBitmap(cropped, inputSize, inputSize, true)
+
+                      val inputBuffer = ByteBuffer.allocateDirect(4 * inputSize * inputSize * 3)
+                      inputBuffer.order(ByteOrder.nativeOrder())
+
+                      val pixels = IntArray(inputSize * inputSize)
+                      scaled.getPixels(pixels, 0, inputSize, 0, 0, inputSize, inputSize)
+
+                      for (pixel in pixels) {
+                          val r = ((pixel shr 16) and 0xFF) / 255.0f
+                          val g = ((pixel shr 8) and 0xFF) / 255.0f
+                          val b = (pixel and 0xFF) / 255.0f
+                          inputBuffer.putFloat(r)
+                          inputBuffer.putFloat(g)
+                          inputBuffer.putFloat(b)
+                      }
+
+                      val output = Array(1) { FloatArray(2) }
+                      tflite.run(inputBuffer, output)
+
+                      // Model output: [0] = Male probability, [1] = Female probability
+                      val maleProb = output[0][0]
+                      val femaleProb = output[0][1]
+                      femaleProb >= 0.52f && femaleProb > maleProb
+                  } catch (e: Exception) {
+                      false
+                  } finally {
+                      scaled?.recycle()
+                      cropped?.recycle()
+                  }
+              }
+
+              fun close() {
+                  interpreter?.close()
+                  interpreter = null
+              }
+          }
+          EOF
+
           cat << 'EOF' > app/src/main/java/com/my/screenblocker/OverlayView.kt
           package com.my.screenblocker
 
           import android.content.Context
+          import android.graphics.Bitmap
           import android.graphics.Canvas
           import android.graphics.Color
           import android.graphics.Paint
+          import android.graphics.Path
           import android.graphics.Rect
           import android.graphics.RectF
           import android.view.View
 
-          class OverlayView(context: Context) : View(context) {
-              private var boxes: List<Rect> = emptyList()
+          data class BlurPatch(
+              val screenRect: Rect,
+              val blurredBitmap: Bitmap
+          )
 
-              private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                  color = Color.parseColor("#F5111827")
+          class OverlayView(context: Context) : View(context) {
+              private var patches: List<BlurPatch> = emptyList()
+
+              private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+
+              private val frostPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                  color = Color.parseColor("#38FFFFFF")
                   style = Paint.Style.FILL
               }
 
-              private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                  color = Color.parseColor("#40FFFFFF")
-                  style = Paint.Style.STROKE
-                  strokeWidth = 2f
-              }
+              private val clipPath = Path()
+              private val destRectF = RectF()
 
-              private val tempRect = RectF()
-
-              fun updateBoxes(newBoxes: List<Rect>) {
-                  boxes = newBoxes
+              fun updatePatches(newPatches: List<BlurPatch>) {
+                  patches = newPatches
                   invalidate()
               }
 
               override fun onDraw(canvas: Canvas) {
                   super.onDraw(canvas)
-                  val pad = BlurService.boxPadding.toFloat()
-                  for (rect in boxes) {
-                      tempRect.set(
-                          (rect.left - pad).coerceAtLeast(0f),
-                          (rect.top - pad * 1.2f).coerceAtLeast(0f),
-                          (rect.right + pad).coerceAtMost(width.toFloat()),
-                          (rect.bottom + pad * 1.2f).coerceAtMost(height.toFloat())
+                  for (patch in patches) {
+                      val r = patch.screenRect
+                      destRectF.set(
+                          r.left.toFloat().coerceAtLeast(0f),
+                          r.top.toFloat().coerceAtLeast(0f),
+                          r.right.toFloat().coerceAtMost(width.toFloat()),
+                          r.bottom.toFloat().coerceAtMost(height.toFloat())
                       )
-                      canvas.drawRoundRect(tempRect, 26f, 26f, fillPaint)
-                      canvas.drawRoundRect(tempRect, 26f, 26f, borderPaint)
+
+                      clipPath.reset()
+                      clipPath.addRoundRect(destRectF, 34f, 34f, Path.Direction.CW)
+
+                      canvas.save()
+                      canvas.clipPath(clipPath)
+                      canvas.drawBitmap(patch.blurredBitmap, null, destRectF, bitmapPaint)
+                      canvas.drawRect(destRectF, frostPaint)
+                      canvas.restore()
                   }
               }
           }
@@ -355,7 +549,9 @@ jobs:
 
               companion object {
                   var isRunning = false
-                  var boxPadding = 25
+                  var womenOnlyMode = true
+                  var bodyExtensionFactor = 2.2f // Extends from face down to chest/breast area
+                  var blurStrength = 8           // 1 (light) to 10 (heavy frosted blur)
               }
 
               private var mediaProjection: MediaProjection? = null
@@ -363,11 +559,12 @@ jobs:
               private var imageReader: ImageReader? = null
               private lateinit var windowManager: WindowManager
               private lateinit var overlayView: OverlayView
+              private lateinit var genderClassifier: GenderClassifier
 
               private var lastProcessTime = 0L
               private var isProcessing = false
               private var lastSamplePixels: IntArray? = null
-              private var currentBoxes: List<Rect> = emptyList()
+              private var currentPatches: List<BlurPatch> = emptyList()
 
               private var realWidth = 1080
               private var realHeight = 2400
@@ -397,6 +594,8 @@ jobs:
                   super.onCreate()
                   isRunning = true
                   windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+                  genderClassifier = GenderClassifier(this)
+
                   val (w, h) = getRealScreenSize()
                   realWidth = w
                   realHeight = h
@@ -450,7 +649,7 @@ jobs:
 
               private fun startForegroundNotification() {
                   val channelId = "blocker_channel"
-                  val channel = NotificationChannel(channelId, "Screen Blocker", NotificationManager.IMPORTANCE_LOW)
+                  val channel = NotificationChannel(channelId, "ScreenBlocker Service", NotificationManager.IMPORTANCE_LOW)
                   getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
 
                   val openIntent = PendingIntent.getActivity(
@@ -459,8 +658,8 @@ jobs:
                   )
 
                   val notification = NotificationCompat.Builder(this, channelId)
-                      .setContentTitle("ScreenBlocker চালু আছে")
-                      .setContentText("বন্ধ করতে এখানে ট্যাপ করুন")
+                      .setContentTitle("ScreenBlocker Active")
+                      .setContentText("Tap here to open settings or stop")
                       .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
                       .setContentIntent(openIntent)
                       .setOngoing(true)
@@ -483,244 +682,3 @@ jobs:
                   val prev = lastSamplePixels
 
                   for (r in 1..rows) {
-                      val y = (bitmap.height * r) / (rows + 1)
-                      for (c in 1..cols) {
-                          val x = (bitmap.width * c) / (cols + 1)
-                          val pixel = bitmap.getPixel(x, y)
-                          newSamples[idx] = pixel
-
-                          val screenX = (x * scaleX).toInt()
-                          val screenY = (y * scaleY).toInt()
-                          val insideBox = currentBoxes.any { it.contains(screenX, screenY) }
-
-                          if (!insideBox && prev != null) {
-                              val p1 = prev[idx]
-                              val dr = abs(((pixel shr 16) and 0xFF) - ((p1 shr 16) and 0xFF))
-                              val dg = abs(((pixel shr 8) and 0xFF) - ((p1 shr 8) and 0xFF))
-                              val db = abs((pixel and 0xFF) - (p1 and 0xFF))
-                              diffSum += (dr + dg + db) / 3
-                              comparedCount++
-                          }
-                          idx++
-                      }
-                  }
-                  lastSamplePixels = newSamples
-                  if (prev == null || comparedCount == 0) return true
-                  return (diffSum / comparedCount) > 12
-              }
-
-              private fun startScreenCapture() {
-                  val captureWidth = (realWidth / 2).coerceAtLeast(360)
-                  val captureHeight = (realHeight / 2).coerceAtLeast(640)
-                  val density = (resources.displayMetrics.densityDpi / 2).coerceAtLeast(160)
-
-                  val scaleX = realWidth.toFloat() / captureWidth.toFloat()
-                  val scaleY = realHeight.toFloat() / captureHeight.toFloat()
-
-                  imageReader = ImageReader.newInstance(captureWidth, captureHeight, PixelFormat.RGBA_8888, 2)
-                  virtualDisplay = mediaProjection?.createVirtualDisplay(
-                      "ScreenBlockerDisplay", captureWidth, captureHeight, density,
-                      DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                      imageReader?.surface, null, handler
-                  )
-
-                  imageReader?.setOnImageAvailableListener({ reader ->
-                      val image = reader.acquireLatestImage() ?: return@setOnImageAvailableListener
-                      val now = System.currentTimeMillis()
-
-                      if (isProcessing || now - lastProcessTime < 150) {
-                          image.close()
-                          return@setOnImageAvailableListener
-                      }
-                      lastProcessTime = now
-                      isProcessing = true
-
-                      val planes = image.planes
-                      val buffer = planes[0].buffer
-                      val pixelStride = planes[0].pixelStride
-                      val rowStride = planes[0].rowStride
-                      val rowPadding = rowStride - pixelStride * captureWidth
-
-                      val fullBitmap = Bitmap.createBitmap(
-                          captureWidth + rowPadding / pixelStride, captureHeight, Bitmap.Config.ARGB_8888
-                      )
-                      fullBitmap.copyPixelsFromBuffer(buffer)
-                      image.close()
-
-                      val bitmap = if (rowPadding > 0) {
-                          val cropped = Bitmap.createBitmap(fullBitmap, 0, 0, captureWidth, captureHeight)
-                          fullBitmap.recycle()
-                          cropped
-                      } else {
-                          fullBitmap
-                      }
-
-                      val screenChanged = hasScreenChanged(bitmap, scaleX, scaleY)
-
-                      if (!screenChanged && currentBoxes.isNotEmpty()) {
-                          bitmap.recycle()
-                          isProcessing = false
-                          return@setOnImageAvailableListener
-                      }
-
-                      val inputImage = InputImage.fromBitmap(bitmap, 0)
-                      detector.process(inputImage)
-                          .addOnSuccessListener { faces ->
-                              val mappedBoxes = faces.map { face ->
-                                  val b = face.boundingBox
-                                  Rect(
-                                      (b.left * scaleX).toInt(),
-                                      (b.top * scaleY).toInt(),
-                                      (b.right * scaleX).toInt(),
-                                      (b.bottom * scaleY).toInt()
-                                  )
-                              }
-                              if (screenChanged) {
-                                  currentBoxes = mappedBoxes
-                              } else if (mappedBoxes.isNotEmpty()) {
-                                  currentBoxes = currentBoxes + mappedBoxes
-                              }
-                              overlayView.updateBoxes(currentBoxes)
-                          }
-                          .addOnCompleteListener {
-                              bitmap.recycle()
-                              isProcessing = false
-                          }
-                  }, handler)
-              }
-
-              override fun onDestroy() {
-                  super.onDestroy()
-                  isRunning = false
-                  virtualDisplay?.release()
-                  imageReader?.close()
-                  mediaProjection?.stop()
-                  if (::overlayView.isInitialized) {
-                      windowManager.removeView(overlayView)
-                  }
-              }
-
-              override fun onBind(intent: Intent?): IBinder? = null
-          }
-          EOF
-
-          cat << 'EOF' > app/src/main/java/com/my/screenblocker/MainActivity.kt
-          package com.my.screenblocker
-
-          import android.app.Activity
-          import android.content.Context
-          import android.content.Intent
-          import android.graphics.Color
-          import android.media.projection.MediaProjectionManager
-          import android.net.Uri
-          import android.os.Build
-          import android.os.Bundle
-          import android.provider.Settings
-          import android.widget.Button
-          import android.widget.SeekBar
-          import android.widget.TextView
-          import android.widget.Toast
-          import androidx.activity.result.contract.ActivityResultContracts
-          import androidx.appcompat.app.AppCompatActivity
-
-          class MainActivity : AppCompatActivity() {
-
-              private lateinit var projectionManager: MediaProjectionManager
-              private lateinit var tvStatus: TextView
-
-              private val screenCaptureLauncher = registerForActivityResult(
-                  ActivityResultContracts.StartActivityForResult()
-              ) { result ->
-                  if (result.resultCode == Activity.RESULT_OK && result.data != null) {
-                      val serviceIntent = Intent(this, BlurService::class.java).apply {
-                          putExtra("RESULT_CODE", result.resultCode)
-                          putExtra("DATA", result.data)
-                      }
-                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                          startForegroundService(serviceIntent)
-                      } else {
-                          startService(serviceIntent)
-                      }
-                      updateStatusUI(true)
-                      Toast.makeText(this, "ScreenBlocker চালু হয়েছে!", Toast.LENGTH_SHORT).show()
-                      moveTaskToBack(true)
-                  }
-              }
-
-              override fun onCreate(savedInstanceState: Bundle?) {
-                  super.onCreate(savedInstanceState)
-                  setContentView(R.layout.activity_main)
-
-                  projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-                  tvStatus = findViewById(R.id.tvStatus)
-
-                  val seekPadding = findViewById<SeekBar>(R.id.seekPadding)
-                  val tvPaddingValue = findViewById<TextView>(R.id.tvPaddingValue)
-                  seekPadding.progress = BlurService.boxPadding
-                  tvPaddingValue.text = "অতিরিক্ত মার্জিন: ${BlurService.boxPadding} px"
-
-                  seekPadding.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                      override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                          BlurService.boxPadding = progress
-                          tvPaddingValue.text = "অতিরিক্ত মার্জিন: $progress px"
-                      }
-                      override fun onStartTrackingTouch(sb: SeekBar?) {}
-                      override fun onStopTrackingTouch(sb: SeekBar?) {}
-                  })
-
-                  findViewById<Button>(R.id.btnStart).setOnClickListener {
-                      if (!Settings.canDrawOverlays(this)) {
-                          Toast.makeText(this, "আগে Display over other apps পারমিশন দিন", Toast.LENGTH_LONG).show()
-                          val intent = Intent(
-                              Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                              Uri.parse("package:$packageName")
-                          )
-                          startActivity(intent)
-                      } else {
-                          screenCaptureLauncher.launch(projectionManager.createScreenCaptureIntent())
-                      }
-                  }
-
-                  findViewById<Button>(R.id.btnStop).setOnClickListener {
-                      stopService(Intent(this, BlurService::class.java))
-                      updateStatusUI(false)
-                      Toast.makeText(this, "ScreenBlocker বন্ধ করা হয়েছে", Toast.LENGTH_SHORT).show()
-                  }
-              }
-
-              override fun onResume() {
-                  super.onResume()
-                  updateStatusUI(BlurService.isRunning)
-              }
-
-              private fun updateStatusUI(active: Boolean) {
-                  if (active) {
-                      tvStatus.text = "● সার্ভিস চালু আছে (Active)"
-                      tvStatus.setTextColor(Color.parseColor("#10B981"))
-                  } else {
-                      tvStatus.text = "● সার্ভিস বন্ধ আছে"
-                      tvStatus.setTextColor(Color.parseColor("#94A3B8"))
-                  }
-              }
-          }
-          EOF
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.7'
-
-      - name: Build Debug APK
-        run: gradle assembleDebug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: ScreenBlocker-v2-Lite-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
