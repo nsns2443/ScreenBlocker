@@ -1,4 +1,4 @@
-name: Build Android APK v3
+name: Build Android APK v4
 
 on:
   push:
@@ -12,7 +12,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create v3 project files and download offline Gender AI model
+      - name: Create v4 project files and download offline Gender AI model
         run: |
           mkdir -p app/src/main/assets
           mkdir -p app/src/main/res/layout
@@ -20,9 +20,9 @@ jobs:
           mkdir -p app/src/main/java/com/my/screenblocker
 
           echo "Downloading lightweight offline Gender Classification model..."
-          curl -fSL "https://raw.githubusercontent.com/shubham0204/Age-Gender_Estimation_TF-Android/master/app/src/main/assets/model_gender_q.tflite" -o app/src/main/assets/gender_model.tflite \
-          || curl -fSL "https://raw.githubusercontent.com/shubham0204/Age-Gender_Estimation_TF-Android/master/app/src/main/assets/model_lite_gender_q.tflite" -o app/src/main/assets/gender_model.tflite \
-          || curl -fSL "https://raw.githubusercontent.com/haturusinghe/cnn-age-gender-detection-android/main/app/src/main/assets/model_gender_nonq.tflite" -o app/src/main/assets/gender_model.tflite
+          curl -fSL --connect-timeout 15 --max-time 60 "https://raw.githubusercontent.com/shubham0204/Age-Gender_Estimation_TF-Android/master/app/src/main/assets/model_gender_q.tflite" -o app/src/main/assets/gender_model.tflite \
+          || curl -fSL --connect-timeout 15 --max-time 60 "https://raw.githubusercontent.com/shubham0204/Age-Gender_Estimation_TF-Android/master/app/src/main/assets/model_lite_gender_q.tflite" -o app/src/main/assets/gender_model.tflite \
+          || curl -fSL --connect-timeout 15 --max-time 60 "https://raw.githubusercontent.com/haturusinghe/cnn-age-gender-detection-android/main/app/src/main/assets/model_gender_nonq.tflite" -o app/src/main/assets/gender_model.tflite
 
           ls -lh app/src/main/assets/gender_model.tflite
 
@@ -73,8 +73,8 @@ jobs:
                   applicationId = "com.my.screenblocker"
                   minSdk = 29
                   targetSdk = 34
-                  versionCode = 3
-                  versionName = "3.0"
+                  versionCode = 4
+                  versionName = "4.0"
 
                   ndk {
                       abiFilters += listOf("arm64-v8a", "armeabi-v7a")
@@ -130,7 +130,8 @@ jobs:
 
                   <activity
                       android:name=".MainActivity"
-                      android:exported="true">
+                      android:exported="true"
+                      android:launchMode="singleTop">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
@@ -141,6 +142,17 @@ jobs:
                       android:name=".BlurService"
                       android:exported="false"
                       android:foregroundServiceType="mediaProjection" />
+
+                  <service
+                      android:name=".BlockerTileService"
+                      android:exported="true"
+                      android:icon="@android:drawable/ic_lock_idle_lock"
+                      android:label="ScreenBlocker"
+                      android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+                      <intent-filter>
+                          <action android:name="android.service.quicksettings.action.QS_TILE" />
+                      </intent-filter>
+                  </service>
               </application>
           </manifest>
           EOF
@@ -197,7 +209,7 @@ jobs:
                       android:layout_width="wrap_content"
                       android:layout_height="wrap_content"
                       android:layout_marginTop="4dp"
-                      android:text="AI Privacy Blur • v3.0"
+                      android:text="AI Mosaic Censor • v4.0"
                       android:textColor="#94A3B8"
                       android:textSize="14sp" />
 
@@ -276,7 +288,7 @@ jobs:
                                   android:layout_width="wrap_content"
                                   android:layout_height="wrap_content"
                                   android:layout_marginTop="2dp"
-                                  android:text="Blur only female faces &amp; upper body"
+                                  android:text="Mosaic only female faces &amp; upper body"
                                   android:textColor="#94A3B8"
                                   android:textSize="12sp" />
                           </LinearLayout>
@@ -330,7 +342,7 @@ jobs:
                       <TextView
                           android:layout_width="wrap_content"
                           android:layout_height="wrap_content"
-                          android:text="Blur Intensity"
+                          android:text="Mosaic Pixel Block Size"
                           android:textColor="#E2E8F0"
                           android:textSize="15sp"
                           android:textStyle="bold" />
@@ -340,7 +352,7 @@ jobs:
                           android:layout_width="wrap_content"
                           android:layout_height="wrap_content"
                           android:layout_marginTop="4dp"
-                          android:text="Strength: Heavy (Level 8)"
+                          android:text="Pixel Size: Heavy (Level 7)"
                           android:textColor="#94A3B8"
                           android:textSize="13sp" />
 
@@ -350,7 +362,7 @@ jobs:
                           android:layout_height="wrap_content"
                           android:layout_marginTop="8dp"
                           android:max="10"
-                          android:progress="8" />
+                          android:progress="7" />
                   </LinearLayout>
 
                   <TextView
@@ -358,7 +370,7 @@ jobs:
                       android:layout_height="wrap_content"
                       android:layout_marginTop="18dp"
                       android:lineSpacingExtra="4dp"
-                      android:text="Tip: Turn ON before opening Facebook or YouTube, and tap OFF when done. All AI detection runs 100% offline on your device."
+                      android:text="Tip: You can add the ScreenBlocker toggle to your Quick Settings panel, or use Pause / Resume and Stop directly from the notification bar."
                       android:textColor="#64748B"
                       android:textSize="13sp" />
               </LinearLayout>
@@ -404,7 +416,6 @@ jobs:
               fun isFemale(screenBitmap: Bitmap, faceRect: Rect): Boolean {
                   val tflite = interpreter ?: return true
 
-                  // Add 20% margin around face so hair & jawline improve accuracy
                   val padX = (faceRect.width() * 0.20f).toInt()
                   val padY = (faceRect.height() * 0.20f).toInt()
 
@@ -441,7 +452,6 @@ jobs:
                       val output = Array(1) { FloatArray(2) }
                       tflite.run(inputBuffer, output)
 
-                      // Model output: [0] = Male probability, [1] = Female probability
                       val maleProb = output[0][0]
                       val femaleProb = output[0][1]
                       femaleProb >= 0.52f && femaleProb > maleProb
@@ -466,29 +476,27 @@ jobs:
           import android.content.Context
           import android.graphics.Bitmap
           import android.graphics.Canvas
-          import android.graphics.Color
           import android.graphics.Paint
-          import android.graphics.Path
           import android.graphics.Rect
           import android.graphics.RectF
           import android.view.View
 
           data class BlurPatch(
               val screenRect: Rect,
-              val blurredBitmap: Bitmap
+              val mosaicBitmap: Bitmap
           )
 
           class OverlayView(context: Context) : View(context) {
               private var patches: List<BlurPatch> = emptyList()
 
-              private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-
-              private val frostPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                  color = Color.parseColor("#38FFFFFF")
-                  style = Paint.Style.FILL
+              // Nearest-neighbor paint: 100% opaque crisp square mosaic pixels (no transparency)
+              private val mosaicPaint = Paint().apply {
+                  isAntiAlias = false
+                  isFilterBitmap = false
+                  isDither = false
+                  alpha = 255
               }
 
-              private val clipPath = Path()
               private val destRectF = RectF()
 
               fun updatePatches(newPatches: List<BlurPatch>) {
@@ -506,15 +514,67 @@ jobs:
                           r.right.toFloat().coerceAtMost(width.toFloat()),
                           r.bottom.toFloat().coerceAtMost(height.toFloat())
                       )
+                      canvas.drawBitmap(patch.mosaicBitmap, null, destRectF, mosaicPaint)
+                  }
+              }
+          }
+          EOF
 
-                      clipPath.reset()
-                      clipPath.addRoundRect(destRectF, 34f, 34f, Path.Direction.CW)
+          cat << 'EOF' > app/src/main/java/com/my/screenblocker/BlockerTileService.kt
+          package com.my.screenblocker
 
-                      canvas.save()
-                      canvas.clipPath(clipPath)
-                      canvas.drawBitmap(patch.blurredBitmap, null, destRectF, bitmapPaint)
-                      canvas.drawRect(destRectF, frostPaint)
-                      canvas.restore()
+          import android.app.PendingIntent
+          import android.content.Intent
+          import android.os.Build
+          import android.service.quicksettings.Tile
+          import android.service.quicksettings.TileService
+
+          class BlockerTileService : TileService() {
+
+              override fun onStartListening() {
+                  super.onStartListening()
+                  updateTileState()
+              }
+
+              override fun onClick() {
+                  super.onClick()
+                  if (BlurService.isRunning) {
+                      val stopIntent = Intent(this, BlurService::class.java).apply {
+                          action = BlurService.ACTION_STOP
+                      }
+                      startService(stopIntent)
+                      qsTile?.apply {
+                          state = Tile.STATE_INACTIVE
+                          label = "ScreenBlocker"
+                          updateTile()
+                      }
+                  } else {
+                      val launchIntent = Intent(this, MainActivity::class.java).apply {
+                          addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                          putExtra("AUTO_START", true)
+                      }
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                          val pi = PendingIntent.getActivity(
+                              this, 101, launchIntent,
+                              PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                          )
+                          startActivityAndCollapse(pi)
+                      } else {
+                          @Suppress("DEPRECATION")
+                          startActivityAndCollapse(launchIntent)
+                      }
+                  }
+              }
+
+              private fun updateTileState() {
+                  qsTile?.apply {
+                      state = if (BlurService.isRunning && !BlurService.isPaused) {
+                          Tile.STATE_ACTIVE
+                      } else {
+                          Tile.STATE_INACTIVE
+                      }
+                      label = "ScreenBlocker"
+                      updateTile()
                   }
               }
           }
@@ -524,6 +584,7 @@ jobs:
           package com.my.screenblocker
 
           import android.app.*
+          import android.content.ComponentName
           import android.content.Context
           import android.content.Intent
           import android.content.pm.ServiceInfo
@@ -536,6 +597,7 @@ jobs:
           import android.media.projection.MediaProjection
           import android.media.projection.MediaProjectionManager
           import android.os.*
+          import android.service.quicksettings.TileService
           import android.util.DisplayMetrics
           import android.view.Gravity
           import android.view.WindowManager
@@ -548,10 +610,16 @@ jobs:
           class BlurService : Service() {
 
               companion object {
+                  const val ACTION_TOGGLE_PAUSE = "com.my.screenblocker.ACTION_TOGGLE_PAUSE"
+                  const val ACTION_STOP = "com.my.screenblocker.ACTION_STOP"
+                  private const val CHANNEL_ID = "blocker_channel"
+                  private const val NOTIFICATION_ID = 1
+
                   var isRunning = false
+                  var isPaused = false
                   var womenOnlyMode = true
-                  var bodyExtensionFactor = 2.2f // Extends from face down to chest/breast area
-                  var blurStrength = 8           // 1 (light) to 10 (heavy frosted blur)
+                  var bodyExtensionFactor = 2.2f
+                  var blurStrength = 7 // 1 (fine pixels) to 10 (large mosaic blocks)
               }
 
               private var mediaProjection: MediaProjection? = null
@@ -593,6 +661,7 @@ jobs:
               override fun onCreate() {
                   super.onCreate()
                   isRunning = true
+                  isPaused = false
                   windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
                   genderClassifier = GenderClassifier(this)
 
@@ -621,9 +690,29 @@ jobs:
                       }
                   }
                   windowManager.addView(overlayView, params)
+                  refreshTile()
               }
 
               override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+                  when (intent?.action) {
+                      ACTION_STOP -> {
+                          stopSelf()
+                          return START_NOT_STICKY
+                      }
+                      ACTION_TOGGLE_PAUSE -> {
+                          isPaused = !isPaused
+                          if (isPaused) {
+                              currentPatches = emptyList()
+                              overlayView.updatePatches(emptyList())
+                          } else {
+                              lastSamplePixels = null
+                          }
+                          updateNotification()
+                          refreshTile()
+                          return START_STICKY
+                      }
+                  }
+
                   startForegroundNotification()
 
                   val resultCode = intent?.getIntExtra("RESULT_CODE", Activity.RESULT_CANCELED) ?: return START_NOT_STICKY
@@ -647,9 +736,10 @@ jobs:
                   return START_STICKY
               }
 
-              private fun startForegroundNotification() {
-                  val channelId = "blocker_channel"
-                  val channel = NotificationChannel(channelId, "ScreenBlocker Service", NotificationManager.IMPORTANCE_LOW)
+              private fun buildNotification(): Notification {
+                  val channel = NotificationChannel(
+                      CHANNEL_ID, "ScreenBlocker Controls", NotificationManager.IMPORTANCE_LOW
+                  )
                   getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
 
                   val openIntent = PendingIntent.getActivity(
@@ -657,19 +747,53 @@ jobs:
                       PendingIntent.FLAG_IMMUTABLE
                   )
 
-                  val notification = NotificationCompat.Builder(this, channelId)
-                      .setContentTitle("ScreenBlocker Active")
-                      .setContentText("Tap here to open settings or stop")
+                  val toggleIntent = PendingIntent.getService(
+                      this, 1,
+                      Intent(this, BlurService::class.java).apply { action = ACTION_TOGGLE_PAUSE },
+                      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                  )
+
+                  val stopIntent = PendingIntent.getService(
+                      this, 2,
+                      Intent(this, BlurService::class.java).apply { action = ACTION_STOP },
+                      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                  )
+
+                  val statusTitle = if (isPaused) "ScreenBlocker Paused" else "ScreenBlocker Active"
+                  val statusText = if (isPaused) "Tap Resume to turn mosaic ON" else "Mosaic filter is running"
+                  val toggleLabel = if (isPaused) "Resume (ON)" else "Pause"
+
+                  return NotificationCompat.Builder(this, CHANNEL_ID)
+                      .setContentTitle(statusTitle)
+                      .setContentText(statusText)
                       .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
                       .setContentIntent(openIntent)
                       .setOngoing(true)
+                      .addAction(0, toggleLabel, toggleIntent)
+                      .addAction(0, "Stop (OFF)", stopIntent)
                       .build()
+              }
 
+              private fun startForegroundNotification() {
+                  val notification = buildNotification()
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                      startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+                      startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
                   } else {
-                      startForeground(1, notification)
+                      startForeground(NOTIFICATION_ID, notification)
                   }
+              }
+
+              private fun updateNotification() {
+                  val nm = getSystemService(NotificationManager::class.java)
+                  nm.notify(NOTIFICATION_ID, buildNotification())
+              }
+
+              private fun refreshTile() {
+                  try {
+                      TileService.requestListeningState(
+                          this, ComponentName(this, BlockerTileService::class.java)
+                      )
+                  } catch (_: Exception) {}
               }
 
               private fun hasScreenChanged(bitmap: Bitmap, scaleX: Float, scaleY: Float): Boolean {
@@ -708,7 +832,7 @@ jobs:
                   return (diffSum / comparedCount) > 12
               }
 
-              private fun createBlurredPatchBitmap(source: Bitmap, region: Rect): Bitmap? {
+              private fun createMosaicPatchBitmap(source: Bitmap, region: Rect): Bitmap? {
                   val left = region.left.coerceIn(0, source.width - 1)
                   val top = region.top.coerceIn(0, source.height - 1)
                   val right = region.right.coerceIn(left + 1, source.width)
@@ -720,50 +844,14 @@ jobs:
 
                   val crop = Bitmap.createBitmap(source, left, top, w, h)
 
-                  // Higher blurStrength = smaller intermediate resolution = smoother, heavier blur
-                  val divisor = (blurStrength * 2.4f + 4f).coerceAtLeast(6f)
-                  val smallW = (w / divisor).toInt().coerceIn(5, 24)
-                  val smallH = (h / divisor).toInt().coerceIn(6, 32)
+                  // Crisp square pixel block size (100% opaque TV-style mosaic)
+                  val blockSize = (4 + blurStrength * 2).coerceAtLeast(6)
+                  val smallW = (w / blockSize).coerceAtLeast(4)
+                  val smallH = (h / blockSize).coerceAtLeast(5)
 
                   val tiny = Bitmap.createScaledBitmap(crop, smallW, smallH, true)
                   crop.recycle()
-
-                  // Smooth 3x3 average pass on the tiny bitmap for creamy Gaussian-like blur
-                  val blurred = smoothTinyBitmap(tiny)
-                  tiny.recycle()
-                  return blurred
-              }
-
-              private fun smoothTinyBitmap(src: Bitmap): Bitmap {
-                  val w = src.width
-                  val h = src.height
-                  val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-                  val pixels = IntArray(w * h)
-                  src.getPixels(pixels, 0, w, 0, 0, w, h)
-                  val result = IntArray(w * h)
-
-                  for (y in 0 until h) {
-                      for (x in 0 until w) {
-                          var rSum = 0
-                          var gSum = 0
-                          var bSum = 0
-                          var count = 0
-                          for (dy in -1..1) {
-                              val ny = (y + dy).coerceIn(0, h - 1)
-                              for (dx in -1..1) {
-                                  val nx = (x + dx).coerceIn(0, w - 1)
-                                  val p = pixels[ny * w + nx]
-                                  rSum += (p shr 16) and 0xFF
-                                  gSum += (p shr 8) and 0xFF
-                                  bSum += p and 0xFF
-                                  count++
-                              }
-                          }
-                          result[y * w + x] = (0xFF shl 24) or ((rSum / count) shl 16) or ((gSum / count) shl 8) or (bSum / count)
-                      }
-                  }
-                  out.setPixels(result, 0, w, 0, 0, w, h)
-                  return out
+                  return tiny
               }
 
               private fun startScreenCapture() {
@@ -783,8 +871,13 @@ jobs:
 
                   imageReader?.setOnImageAvailableListener({ reader ->
                       val image = reader.acquireLatestImage() ?: return@setOnImageAvailableListener
-                      val now = System.currentTimeMillis()
 
+                      if (isPaused) {
+                          image.close()
+                          return@setOnImageAvailableListener
+                      }
+
+                      val now = System.currentTimeMillis()
                       if (isProcessing || now - lastProcessTime < 150) {
                           image.close()
                           return@setOnImageAvailableListener
@@ -823,6 +916,7 @@ jobs:
                       val inputImage = InputImage.fromBitmap(bitmap, 0)
                       detector.process(inputImage)
                           .addOnSuccessListener { faces ->
+                              if (isPaused) return@addOnSuccessListener
                               val newPatches = mutableListOf<BlurPatch>()
                               for (face in faces) {
                                   val fb = face.boundingBox
@@ -837,7 +931,6 @@ jobs:
                                       val fw = fb.width()
                                       val fh = fb.height()
 
-                                      // Expand from face to cover hair, shoulders, and chest/breast area
                                       val expandedCapRect = Rect(
                                           (fb.left - fw * 0.70f).toInt().coerceAtLeast(0),
                                           (fb.top - fh * 0.35f).toInt().coerceAtLeast(0),
@@ -845,15 +938,15 @@ jobs:
                                           (fb.bottom + fh * bodyExtensionFactor).toInt().coerceAtMost(captureHeight)
                                       )
 
-                                      val blurBmp = createBlurredPatchBitmap(bitmap, expandedCapRect)
-                                      if (blurBmp != null) {
+                                      val mosaicBmp = createMosaicPatchBitmap(bitmap, expandedCapRect)
+                                      if (mosaicBmp != null) {
                                           val screenRect = Rect(
                                               (expandedCapRect.left * scaleX).toInt(),
                                               (expandedCapRect.top * scaleY).toInt(),
                                               (expandedCapRect.right * scaleX).toInt(),
                                               (expandedCapRect.bottom * scaleY).toInt()
                                           )
-                                          newPatches.add(BlurPatch(screenRect, blurBmp))
+                                          newPatches.add(BlurPatch(screenRect, mosaicBmp))
                                       }
                                   }
                               }
@@ -875,6 +968,7 @@ jobs:
               override fun onDestroy() {
                   super.onDestroy()
                   isRunning = false
+                  isPaused = false
                   virtualDisplay?.release()
                   imageReader?.close()
                   mediaProjection?.stop()
@@ -884,6 +978,7 @@ jobs:
                   if (::overlayView.isInitialized) {
                       windowManager.removeView(overlayView)
                   }
+                  refreshTile()
               }
 
               override fun onBind(intent: Intent?): IBinder? = null
@@ -893,10 +988,13 @@ jobs:
           cat << 'EOF' > app/src/main/java/com/my/screenblocker/MainActivity.kt
           package com.my.screenblocker
 
+          import android.Manifest
           import android.app.Activity
           import android.content.Context
           import android.content.Intent
+          import android.content.pm.PackageManager
           import android.graphics.Color
+          import android.media.projection.MediaProjectionConfig
           import android.media.projection.MediaProjectionManager
           import android.net.Uri
           import android.os.Build
@@ -909,6 +1007,8 @@ jobs:
           import androidx.activity.result.contract.ActivityResultContracts
           import androidx.appcompat.app.AppCompatActivity
           import androidx.appcompat.widget.SwitchCompat
+          import androidx.core.app.ActivityCompat
+          import androidx.core.content.ContextCompat
 
           class MainActivity : AppCompatActivity() {
 
@@ -940,6 +1040,8 @@ jobs:
 
                   projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
                   tvStatus = findViewById(R.id.tvStatus)
+
+                  requestNotificationPermissionIfNeeded()
 
                   val switchWomenOnly = findViewById<SwitchCompat>(R.id.switchWomenOnly)
                   switchWomenOnly.isChecked = BlurService.womenOnlyMode
@@ -978,16 +1080,7 @@ jobs:
                   })
 
                   findViewById<Button>(R.id.btnStart).setOnClickListener {
-                      if (!Settings.canDrawOverlays(this)) {
-                          Toast.makeText(this, "Please allow 'Display over other apps' permission", Toast.LENGTH_LONG).show()
-                          val intent = Intent(
-                              Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                              Uri.parse("package:$packageName")
-                          )
-                          startActivity(intent)
-                      } else {
-                          screenCaptureLauncher.launch(projectionManager.createScreenCaptureIntent())
-                      }
+                      startBlockerFlow()
                   }
 
                   findViewById<Button>(R.id.btnStop).setOnClickListener {
@@ -995,15 +1088,60 @@ jobs:
                       updateStatusUI(false)
                       Toast.makeText(this, "ScreenBlocker stopped", Toast.LENGTH_SHORT).show()
                   }
+
+                  if (intent?.getBooleanExtra("AUTO_START", false) == true) {
+                      intent.removeExtra("AUTO_START")
+                      startBlockerFlow()
+                  }
+              }
+
+              override fun onNewIntent(intent: Intent) {
+                  super.onNewIntent(intent)
+                  if (intent.getBooleanExtra("AUTO_START", false)) {
+                      intent.removeExtra("AUTO_START")
+                      startBlockerFlow()
+                  }
+              }
+
+              private fun requestNotificationPermissionIfNeeded() {
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                      if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                          != PackageManager.PERMISSION_GRANTED
+                      ) {
+                          ActivityCompat.requestPermissions(
+                              this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001
+                          )
+                      }
+                  }
+              }
+
+              private fun startBlockerFlow() {
+                  if (!Settings.canDrawOverlays(this)) {
+                      Toast.makeText(this, "Please allow 'Display over other apps' permission", Toast.LENGTH_LONG).show()
+                      val intent = Intent(
+                          Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                          Uri.parse("package:$packageName")
+                      )
+                      startActivity(intent)
+                  } else {
+                      val captureIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                          projectionManager.createScreenCaptureIntent(
+                              MediaProjectionConfig.createConfigForDefaultDisplay()
+                          )
+                      } else {
+                          projectionManager.createScreenCaptureIntent()
+                      }
+                      screenCaptureLauncher.launch(captureIntent)
+                  }
               }
 
               private fun updateBlurLabel(tv: TextView, level: Int) {
                   val label = when {
-                      level <= 3 -> "Light"
+                      level <= 3 -> "Fine"
                       level <= 6 -> "Medium"
                       else -> "Heavy"
                   }
-                  tv.text = "Strength: $label (Level $level)"
+                  tv.text = "Pixel Size: $label (Level $level)"
               }
 
               override fun onResume() {
@@ -1013,8 +1151,10 @@ jobs:
 
               private fun updateStatusUI(active: Boolean) {
                   if (active) {
-                      tvStatus.text = "● Service Active"
-                      tvStatus.setTextColor(Color.parseColor("#10B981"))
+                      tvStatus.text = if (BlurService.isPaused) "● Service Paused" else "● Service Active"
+                      tvStatus.setTextColor(
+                          Color.parseColor(if (BlurService.isPaused) "#F59E0B" else "#10B981")
+                      )
                   } else {
                       tvStatus.text = "● Service Stopped"
                       tvStatus.setTextColor(Color.parseColor("#94A3B8"))
@@ -1040,5 +1180,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ScreenBlocker-v3-AI-Blur-APK
+          name: ScreenBlocker-v4-Mosaic-APK
           path: app/build/outputs/apk/debug/app-debug.apk
