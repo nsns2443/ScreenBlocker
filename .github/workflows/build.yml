@@ -1,4 +1,4 @@
-name: Build Android APK v5
+name: Build Android APK v6
 
 on:
   push:
@@ -12,7 +12,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create v5 project files with custom icon and 100% opaque mosaic
+      - name: Create v6 project files with true OPAQUE windows
         run: |
           mkdir -p app/src/main/assets
           mkdir -p app/src/main/res/layout
@@ -74,8 +74,8 @@ jobs:
                   applicationId = "com.my.screenblocker"
                   minSdk = 29
                   targetSdk = 34
-                  versionCode = 5
-                  versionName = "5.0"
+                  versionCode = 6
+                  versionName = "6.0"
 
                   ndk {
                       abiFilters += listOf("arm64-v8a", "armeabi-v7a")
@@ -193,15 +193,12 @@ jobs:
               android:height="108dp"
               android:viewportWidth="108"
               android:viewportHeight="108">
-              <!-- Outer Shield -->
               <path
                   android:fillColor="#10B981"
                   android:pathData="M54,22 L78,31 L78,52 C78,68 67.5,81.5 54,86 C40.5,81.5 30,68 30,52 L30,31 Z" />
-              <!-- Inner Dark Shield -->
               <path
                   android:fillColor="#0F172A"
                   android:pathData="M54,28 L72,35 L72,52 C72,64.5 64,75 54,79 C44,75 36,64.5 36,52 L36,35 Z" />
-              <!-- Mosaic Blocks inside Shield -->
               <path android:fillColor="#34D399" android:pathData="M43,43 h7 v7 h-7 z" />
               <path android:fillColor="#10B981" android:pathData="M50.5,43 h7 v7 h-7 z" />
               <path android:fillColor="#059669" android:pathData="M58,43 h7 v7 h-7 z" />
@@ -319,7 +316,7 @@ jobs:
                           <TextView
                               android:layout_width="wrap_content"
                               android:layout_height="wrap_content"
-                              android:text="AI Solid Mosaic • v5.0"
+                              android:text="100% Opaque Mosaic • v6.0"
                               android:textColor="#94A3B8"
                               android:textSize="13sp" />
                       </LinearLayout>
@@ -419,6 +416,49 @@ jobs:
                           android:layout_marginBottom="16dp"
                           android:background="#334155" />
 
+                      <LinearLayout
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:gravity="center_vertical"
+                          android:orientation="horizontal">
+
+                          <LinearLayout
+                              android:layout_width="0dp"
+                              android:layout_height="wrap_content"
+                              android:layout_weight="1"
+                              android:orientation="vertical">
+
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:text="Solid Black Cover"
+                                  android:textColor="#E2E8F0"
+                                  android:textSize="15sp"
+                                  android:textStyle="bold" />
+
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:layout_marginTop="2dp"
+                                  android:text="Use solid black box instead of mosaic"
+                                  android:textColor="#94A3B8"
+                                  android:textSize="12sp" />
+                          </LinearLayout>
+
+                          <androidx.appcompat.widget.SwitchCompat
+                              android:id="@+id/switchSolidBlack"
+                              android:layout_width="wrap_content"
+                              android:layout_height="wrap_content"
+                              android:checked="false" />
+                      </LinearLayout>
+
+                      <View
+                          android:layout_width="match_parent"
+                          android:layout_height="1dp"
+                          android:layout_marginTop="16dp"
+                          android:layout_marginBottom="16dp"
+                          android:background="#334155" />
+
                       <TextView
                           android:layout_width="wrap_content"
                           android:layout_height="wrap_content"
@@ -464,7 +504,7 @@ jobs:
                           android:layout_width="wrap_content"
                           android:layout_height="wrap_content"
                           android:layout_marginTop="4dp"
-                          android:text="Pixel Size: Heavy (Level 7)"
+                          android:text="Pixel Size: Heavy (Level 8)"
                           android:textColor="#94A3B8"
                           android:textSize="13sp" />
 
@@ -474,7 +514,7 @@ jobs:
                           android:layout_height="wrap_content"
                           android:layout_marginTop="8dp"
                           android:max="10"
-                          android:progress="7" />
+                          android:progress="8" />
                   </LinearLayout>
 
                   <TextView
@@ -482,7 +522,7 @@ jobs:
                       android:layout_height="wrap_content"
                       android:layout_marginTop="18dp"
                       android:lineSpacingExtra="4dp"
-                      android:text="Tip: Long-press the Android 'Displaying over other apps' notification once and turn it off to keep only the ScreenBlocker control bar."
+                      android:text="Tip: Each cover now uses a 100% OPAQUE hardware layer so nothing underneath can show through."
                       android:textColor="#64748B"
                       android:textSize="13sp" />
               </LinearLayout>
@@ -582,7 +622,7 @@ jobs:
           }
           EOF
 
-          cat << 'EOF' > app/src/main/java/com/my/screenblocker/OverlayView.kt
+          cat << 'EOF' > app/src/main/java/com/my/screenblocker/MosaicBoxView.kt
           package com.my.screenblocker
 
           import android.content.Context
@@ -591,7 +631,6 @@ jobs:
           import android.graphics.Color
           import android.graphics.Paint
           import android.graphics.Rect
-          import android.graphics.RectF
           import android.view.View
 
           data class BlurPatch(
@@ -599,17 +638,15 @@ jobs:
               val mosaicBitmap: Bitmap
           )
 
-          class OverlayView(context: Context) : View(context) {
-              private var patches: List<BlurPatch> = emptyList()
+          class MosaicBoxView(context: Context) : View(context) {
+              private var mosaicBitmap: Bitmap? = null
+              private var solidBlackMode: Boolean = false
 
-              // Solid 100% opaque backing so nothing underneath can EVER bleed through
-              private val solidBgPaint = Paint().apply {
-                  color = Color.BLACK
+              private val blackPaint = Paint().apply {
+                  color = Color.parseColor("#0B0F19")
                   style = Paint.Style.FILL
-                  alpha = 255
               }
 
-              // Crisp 100% opaque nearest-neighbor mosaic paint
               private val mosaicPaint = Paint().apply {
                   isAntiAlias = false
                   isFilterBitmap = false
@@ -617,27 +654,27 @@ jobs:
                   alpha = 255
               }
 
-              private val destRectF = RectF()
+              private val destRect = Rect()
 
-              fun updatePatches(newPatches: List<BlurPatch>) {
-                  patches = newPatches
+              init {
+                  setBackgroundColor(Color.parseColor("#0B0F19"))
+              }
+
+              fun setContent(bitmap: Bitmap?, useSolidBlack: Boolean) {
+                  mosaicBitmap = bitmap
+                  solidBlackMode = useSolidBlack
                   invalidate()
               }
 
               override fun onDraw(canvas: Canvas) {
                   super.onDraw(canvas)
-                  for (patch in patches) {
-                      val r = patch.screenRect
-                      destRectF.set(
-                          r.left.toFloat().coerceAtLeast(0f),
-                          r.top.toFloat().coerceAtLeast(0f),
-                          r.right.toFloat().coerceAtMost(width.toFloat()),
-                          r.bottom.toFloat().coerceAtMost(height.toFloat())
-                      )
-                      // Step 1: Solid opaque base
-                      canvas.drawRect(destRectF, solidBgPaint)
-                      // Step 2: 100% opaque mosaic pixels on top
-                      canvas.drawBitmap(patch.mosaicBitmap, null, destRectF, mosaicPaint)
+                  destRect.set(0, 0, width, height)
+                  canvas.drawRect(destRect, blackPaint)
+                  if (!solidBlackMode) {
+                      val bmp = mosaicBitmap
+                      if (bmp != null && !bmp.isRecycled) {
+                          canvas.drawBitmap(bmp, null, destRect, mosaicPaint)
+                      }
                   }
               }
           }
@@ -741,16 +778,18 @@ jobs:
                   var isRunning = false
                   var isPaused = false
                   var womenOnlyMode = true
+                  var solidBlackMode = false
                   var bodyExtensionFactor = 2.2f
-                  var blurStrength = 7
+                  var blurStrength = 8
               }
 
               private var mediaProjection: MediaProjection? = null
               private var virtualDisplay: VirtualDisplay? = null
               private var imageReader: ImageReader? = null
               private lateinit var windowManager: WindowManager
-              private lateinit var overlayView: OverlayView
               private lateinit var genderClassifier: GenderClassifier
+
+              private val activeWindows = mutableListOf<Pair<MosaicBoxView, WindowManager.LayoutParams>>()
 
               private var lastProcessTime = 0L
               private var isProcessing = false
@@ -791,30 +830,65 @@ jobs:
                   val (w, h) = getRealScreenSize()
                   realWidth = w
                   realHeight = h
+                  refreshTile()
+              }
 
-                  overlayView = OverlayView(this)
+              private fun updateOverlayWindows(patches: List<BlurPatch>) {
+                  val maxWindows = patches.size.coerceAtMost(8)
 
-                  val params = WindowManager.LayoutParams(
-                      realWidth,
-                      realHeight,
-                      WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                      WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                              WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                              WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                              WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                      PixelFormat.TRANSLUCENT
-                  ).apply {
-                      gravity = Gravity.TOP or Gravity.START
-                      x = 0
-                      y = 0
-                      alpha = 1.0f
-                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                          layoutInDisplayCutoutMode =
-                              WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                  while (activeWindows.size > maxWindows) {
+                      val (view, _) = activeWindows.removeAt(activeWindows.size - 1)
+                      try {
+                          windowManager.removeView(view)
+                      } catch (_: Exception) {}
+                  }
+
+                  for (i in 0 until maxWindows) {
+                      val patch = patches[i]
+                      val r = patch.screenRect
+                      val left = r.left.coerceIn(0, realWidth - 20)
+                      val top = r.top.coerceIn(0, realHeight - 20)
+                      val w = (r.right.coerceAtMost(realWidth) - left).coerceAtLeast(20)
+                      val h = (r.bottom.coerceAtMost(realHeight) - top).coerceAtLeast(20)
+
+                      if (i < activeWindows.size) {
+                          val (view, params) = activeWindows[i]
+                          params.x = left
+                          params.y = top
+                          params.width = w
+                          params.height = h
+                          view.setContent(patch.mosaicBitmap, solidBlackMode)
+                          try {
+                              windowManager.updateViewLayout(view, params)
+                          } catch (_: Exception) {}
+                      } else {
+                          val view = MosaicBoxView(this)
+                          view.setContent(patch.mosaicBitmap, solidBlackMode)
+                          val params = WindowManager.LayoutParams(
+                              w,
+                              h,
+                              left,
+                              top,
+                              WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                              WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                                      WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                                      WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                                      WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                              PixelFormat.OPAQUE
+                          ).apply {
+                              gravity = Gravity.TOP or Gravity.START
+                              alpha = 1.0f
+                              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                  layoutInDisplayCutoutMode =
+                                      WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                              }
+                          }
+                          try {
+                              windowManager.addView(view, params)
+                              activeWindows.add(Pair(view, params))
+                          } catch (_: Exception) {}
                       }
                   }
-                  windowManager.addView(overlayView, params)
-                  refreshTile()
               }
 
               override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -827,7 +901,7 @@ jobs:
                           isPaused = !isPaused
                           if (isPaused) {
                               currentPatches = emptyList()
-                              overlayView.updatePatches(emptyList())
+                              updateOverlayWindows(emptyList())
                           } else {
                               lastSamplePixels = null
                           }
@@ -884,7 +958,7 @@ jobs:
                   )
 
                   val statusTitle = if (isPaused) "ScreenBlocker Paused" else "ScreenBlocker Active"
-                  val statusText = if (isPaused) "Tap Resume to turn mosaic ON" else "Mosaic filter is running"
+                  val statusText = if (isPaused) "Tap Resume to turn cover ON" else "100% Opaque filter is running"
                   val toggleLabel = if (isPaused) "Resume (ON)" else "Pause"
 
                   return NotificationCompat.Builder(this, CHANNEL_ID)
@@ -968,23 +1042,17 @@ jobs:
 
                   val crop = Bitmap.createBitmap(source, left, top, w, h)
 
-                  val blockSize = (4 + blurStrength * 2).coerceAtLeast(6)
-                  val smallW = (w / blockSize).coerceAtLeast(4)
-                  val smallH = (h / blockSize).coerceAtLeast(5)
+                  // Chunky mosaic blocks so faces are completely unrecognizable
+                  val blockSize = (8 + blurStrength * 3).coerceAtLeast(10)
+                  val smallW = (w / blockSize).coerceAtLeast(3)
+                  val smallH = (h / blockSize).coerceAtLeast(4)
 
                   val tiny = Bitmap.createScaledBitmap(crop, smallW, smallH, true)
                   crop.recycle()
 
-                  // Force 100% full opacity (alpha = 255) on every single mosaic pixel
-                  val pixels = IntArray(smallW * smallH)
-                  tiny.getPixels(pixels, 0, smallW, 0, 0, smallW, smallH)
-                  for (i in pixels.indices) {
-                      pixels[i] = pixels[i] or (0xFF shl 24)
-                  }
+                  // RGB_565 physically has NO alpha channel -> guaranteed 100% opaque
+                  val opaqueMosaic = tiny.copy(Bitmap.Config.RGB_565, false)
                   tiny.recycle()
-
-                  val opaqueMosaic = Bitmap.createBitmap(smallW, smallH, Bitmap.Config.ARGB_8888)
-                  opaqueMosaic.setPixels(pixels, 0, smallW, 0, 0, smallW, smallH)
                   return opaqueMosaic
               }
 
@@ -1090,7 +1158,7 @@ jobs:
                               } else if (newPatches.isNotEmpty()) {
                                   currentPatches = currentPatches + newPatches
                               }
-                              overlayView.updatePatches(currentPatches)
+                              updateOverlayWindows(currentPatches)
                           }
                           .addOnCompleteListener {
                               bitmap.recycle()
@@ -1109,9 +1177,12 @@ jobs:
                   if (::genderClassifier.isInitialized) {
                       genderClassifier.close()
                   }
-                  if (::overlayView.isInitialized) {
-                      windowManager.removeView(overlayView)
+                  for ((view, _) in activeWindows) {
+                      try {
+                          windowManager.removeView(view)
+                      } catch (_: Exception) {}
                   }
+                  activeWindows.clear()
                   refreshTile()
               }
 
@@ -1181,6 +1252,12 @@ jobs:
                   switchWomenOnly.isChecked = BlurService.womenOnlyMode
                   switchWomenOnly.setOnCheckedChangeListener { _, isChecked ->
                       BlurService.womenOnlyMode = isChecked
+                  }
+
+                  val switchSolidBlack = findViewById<SwitchCompat>(R.id.switchSolidBlack)
+                  switchSolidBlack.isChecked = BlurService.solidBlackMode
+                  switchSolidBlack.setOnCheckedChangeListener { _, isChecked ->
+                      BlurService.solidBlackMode = isChecked
                   }
 
                   val seekCoverage = findViewById<SeekBar>(R.id.seekCoverage)
@@ -1311,8 +1388,11 @@ jobs:
       - name: Build Debug APK
         run: gradle assembleDebug
 
+      - name: Rename APK to v6
+        run: cp app/build/outputs/apk/debug/app-debug.apk ScreenBlocker-v6.apk
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ScreenBlocker-v5-SolidMosaic-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: ScreenBlocker-v6-Opaque-APK
+          path: ScreenBlocker-v6.apk
